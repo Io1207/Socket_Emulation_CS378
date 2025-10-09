@@ -1,4 +1,3 @@
-// import java.util.*;
 import java.net.*;
 import java.io.*;
 
@@ -26,7 +25,7 @@ public class OracleNode extends Nodes{
     }
 
     ServerSocket initSocket() throws IOException{
-        ServerSocket serverSocket = new ServerSocket(5000); // Listen on port 5000
+        ServerSocket serverSocket = new ServerSocket(5000); // Listen on port 500
         System.out.println("started, waiting for VN");
         return serverSocket;
     }

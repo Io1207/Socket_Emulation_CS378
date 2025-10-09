@@ -1,10 +1,10 @@
 #include <iostream>
 #include <iostream>
-#include <cstring>      // For memset
-#include <sys/socket.h> // For socket(), connect()
-#include <netinet/in.h> // For sockaddr_in
-#include <arpa/inet.h>  // For inet_pton()
-#include <unistd.h>     // For close()
+#include <cstring>     
+#include <sys/socket.h>
+#include <netinet/in.h>
+#include <arpa/inet.h> 
+#include <unistd.h>    
 
 class VN{
     public:
