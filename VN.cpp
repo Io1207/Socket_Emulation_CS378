@@ -6,6 +6,7 @@
 #include <arpa/inet.h>
 #include <unistd.h>
 #include <bitset>
+#include <fcntl.h>
 
 using namespace std;
 
@@ -147,34 +148,82 @@ public:
         return true;
     }
 
+    void make_socket_nonblocking(int sock) {
+        int flags = fcntl(sock, F_GETFL, 0);
+        if (flags == -1) {
+            perror("fcntl F_GETFL");
+            return;
+        }
+        if (fcntl(sock, F_SETFL, flags | O_NONBLOCK) == -1) {
+            perror("fcntl F_SETFL O_NONBLOCK");
+        }
+    }
+
     void listen_for_on_messages() {
         if (vnSocket < 0) {
-            // cerr << "Not connected to Oracle Node.\n";
             return;
         }
 
+        // Ensure socket is non-blocking
+        make_socket_nonblocking(vnSocket);
+
         char buffer[4096];
         int bytesReceived = recv(vnSocket, buffer, sizeof(buffer) - 1, 0);
-        // cout << "Bytes received = " << bytesReceived << endl;
 
         if (bytesReceived > 0) {
             buffer[bytesReceived] = '\0';
-            string response(buffer);
-            cout << "\nReceived from Oracle (" << bytesReceived << " bytes): " << response << endl;
-            response = response.substr(0, response.size()-1);
+            std::string response(buffer);
+
+            // Optional: remove trailing newline if present
+            if (!response.empty() && response.back() == '\n') {
+                response.pop_back();
+            }
+
+            std::cout << "\nReceived from Oracle (" << bytesReceived << " bytes): " << response << std::endl;
+
             parse_neighbours(response);
             send_my_lsp();
         } 
         else if (bytesReceived == 0) {
-            cout << "No new info from Oracle node" << endl;
+            std::cout << "Oracle node closed the connection" << std::endl;
         } 
         else {
             if (errno != EWOULDBLOCK && errno != EAGAIN) {
                 perror("recv() error");
             }
-            // If EWOULDBLOCK / EAGAIN → no data, do nothing (non-blocking)
+            // EWOULDBLOCK/EAGAIN → no data available, do nothing
         }
     }
+
+
+    // void listen_for_on_messages() {
+    //     if (vnSocket < 0) {
+    //         // cerr << "Not connected to Oracle Node.\n";
+    //         return;
+    //     }
+
+    //     char buffer[4096];
+    //     int bytesReceived = recv(vnSocket, buffer, sizeof(buffer) - 1, 0);
+    //     // cout << "Bytes received = " << bytesReceived << endl;
+
+    //     if (bytesReceived > 0) {
+    //         buffer[bytesReceived] = '\0';
+    //         string response(buffer);
+    //         cout << "\nReceived from Oracle (" << bytesReceived << " bytes): " << response << endl;
+    //         response = response.substr(0, response.size()-1);
+    //         parse_neighbours(response);
+    //         send_my_lsp();
+    //     } 
+    //     else if (bytesReceived == 0) {
+    //         cout << "No new info from Oracle node" << endl;
+    //     } 
+    //     else {
+    //         if (errno != EWOULDBLOCK && errno != EAGAIN) {
+    //             perror("recv() error");
+    //         }
+    //         // If EWOULDBLOCK / EAGAIN → no data, do nothing (non-blocking)
+    //     }
+    // }
 
     void send_my_lsp() {
         string my_message = my_lsp(); // get your LSP as a bitstring
@@ -201,8 +250,8 @@ public:
             if (sentBytes < 0) {
                 perror(("Failed to send LSP to " + string(1, nbr.name)).c_str());
             } else {
-                cout << "Sent LSP (" << sentBytes << " bytes) to "
-                    << nbr.name << " at " << nbr.ipaddr << ":" << nbr.port << endl;
+                // cout << "Sent LSP (" << sentBytes << " bytes) to "
+                //     << nbr.name << " at " << nbr.ipaddr << ":" << nbr.port << endl;
             }
         }
     }
@@ -227,8 +276,8 @@ public:
             inet_ntop(AF_INET, &(senderAddr.sin_addr), senderIP, INET_ADDRSTRLEN);
             int senderPort = ntohs(senderAddr.sin_port);
 
-            cout << "\nReceived from VN " << senderIP << ":" << senderPort
-                << " (" << bytesReceived << " bytes): " << msg << endl;
+            // cout << "\nReceived from VN " << senderIP << ":" << senderPort
+            //     << " (" << bytesReceived << " bytes): " << msg << endl;
 
             // parse or handle VN message as needed
             parse_lsp(msg);  // takes care of forwarding the lsp to nbrs as well
@@ -250,16 +299,17 @@ public:
     }
 
     void print_state(){
-        cout << "print state is being called " << endl;
+        cout << "Currently Known Graph to me (Virtual Node "<<myname<<")\n";
         for(int i=0; i<26; i++){
             if(!adjlist[i].empty()){
-                cout << i+'a' << " -> ";
+                cout << char(i+'a') << " -> ";
                 for(auto& nbr: adjlist[i]){
                     cout << "(" << char(nbr.first+'a') << "," << nbr.second << ") ";
                 }
                 cout << endl;
             }
         }
+        cout << endl;
     }
 
 
@@ -274,6 +324,7 @@ private:
 
         int N = bitmsg.size() / ENTRY_BITS;
         neighbours.clear();
+        adjlist[myname-'a'].clear();
 
         for (int i = 0; i < N; ++i) {
             int base = i * ENTRY_BITS;
@@ -308,17 +359,19 @@ private:
             int port    = bits_to_int(port_bits);
             int cost    = bits_to_int(cost_bits);
 
-            if(cost == 0){
+            if(name == myname){
                 continue;
             }
 
             neighbours.emplace_back(nbr(name, ip, port, cost));
-            adjlist[myname-'a'].push_back(make_pair(name, cost));
+            adjlist[myname-'a'].push_back(make_pair(int(name - 'a'), cost));
         }
 
-        cout << "\nParsed Neighbours:\n";
+        cout << "Parsed Neighbours:\n";
         for (auto& n : neighbours)
-            cout << n.name << " " << n.ipaddr << " " << n.port << " " << n.cost << endl;
+            cout << n.name << " (" << n.ipaddr << "," << n.port << ") = " << n.cost << endl;
+
+        cout << endl;
     }
 
     void parse_lsp(string& msg) {
@@ -338,8 +391,8 @@ private:
 
         // Check if this LSP is newer
         if (seqnum > latest_seq[originID]) {
-            cout << "Received newer LSP from VN " << char('a' + originID)
-                << " with seqnum " << seqnum << endl;
+            // cout << "Received newer LSP from VN " << char('a' + originID)
+            //     << " with seqnum " << seqnum << endl;
 
             // Update latest sequence number
             latest_seq[originID] = seqnum;
@@ -354,22 +407,22 @@ private:
                 int nbrname = bits_to_int(link_state_bits.substr(base, 5));
                 int cost = bits_to_int(link_state_bits.substr(base+5, 16));
                 adjlist[originID].push_back(make_pair(nbrname, cost));
+                // cout<<"Neighbour name: "<<nbrname<<" cost: "<<cost<<endl;
                 base += 21;
             }
+            forward_to_nbrs(msg);
 
         } else {
-            cout << "Received old or duplicate LSP from VN "
-                << char('a' + originID) << " (seqnum " << seqnum << ")\n";
+            // cout << "Received old or duplicate LSP from VN "
+            //     << char('a' + originID) << " (seqnum " << seqnum << ")\n";
         }
-
-        forward_to_nbrs(msg);
     }
 
     string my_lsp(){
         string lsp_msg = int_to_5bit(int(myname - 'a')) + int_to_5bit(seqnum);
 
         for(auto& nbr: neighbours){
-            lsp_msg += int_to_5bit(int(nbr.name - 'a')) + ip_to_bit(nbr.ipaddr) + port_to_bit(nbr.port) + port_to_bit(nbr.cost);
+            lsp_msg += int_to_5bit(int(nbr.name - 'a')) + port_to_bit(nbr.cost);
         }
 
         return lsp_msg;
@@ -397,27 +450,30 @@ int main() {
     VN node(oracleip, oracleport, vnip, vnport);
     node.connect_to_oracle();
     long long counter = 0;
-    long long bignum = 5e7;
+    long long bignum = 5e6;
+    long long lspnum = 1e6;
+    long long psnum = 1e5;
 
     while(true){
-        cout<<1;
+        // cout<<1;
         node.listen_for_on_messages();
-        cout<<2;
+        // cout<<2;
         node.listen_for_vn_messages();
-        cout<<3;
+        // cout<<3;
 
-        if(counter == 1e7 && node.myname != '?'){
+        if(!counter%lspnum && node.myname != '?'){
             node.send_my_lsp();
         }
 
-        cout<<4;
+        // cout<<4;
 
-        if(counter == 1e6 && node.myname != '?'){
+        if(!counter%psnum && node.myname != '?'){
             node.print_state();
         }
-        cout<<5<<endl;
+        // cout<<5<<endl;
 
         counter = (counter + 1)%bignum;
+        // cout << "counter = " << counter << endl;
     }
 
     return 0;

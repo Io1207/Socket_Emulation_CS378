@@ -58,7 +58,7 @@ class PleaseWorkLikeAnON{
     static List<Quintuplet<String, Socket, String, Integer, PrintWriter>> clients = new ArrayList<>();
     static String nodeNames = "ABCDEFGHIJKLMNOPQRSTUVWXYZ";
     static int numVNs;
-    static int time_poll = 60000;
+    static int time_poll = 5000;
 
     static List<List<Integer>> extractAdjacencyMatrix(List<String> configFileContents) {
         int n = configFileContents.size() + 1;
