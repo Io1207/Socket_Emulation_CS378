@@ -30,7 +30,7 @@ public class OracleNode extends Nodes{
 
     ServerSocket initSocket() throws IOException{
         // ServerSocket server = new ServerSocket(8080); 
-        ServerSocket server = new ServerSocket(8080, 50, InetAddress.getByName("127.0.0.1"));
+        ServerSocket server = new ServerSocket(8080);
         System.out.println("started, waiting for VN");
         return server;
     }
@@ -101,23 +101,42 @@ class PleaseWorkLikeAnON{
         return adjMatrix;
     }
 
+    // static String encodedIP(Integer j){
+    //     // take the 4 blocks of an ip adress separated by a .
+    //     // convert each block to a 8 bit binary string
+    //     // concatenate the 4 binary strings to get a 32 bit binary string
+    //     StringBuilder binaryIP = new StringBuilder();
+
+    //     String[] blocks = clients.get(j).getThird().split("\\.");
+
+    //     for (String block : blocks) {
+    //         String binaryBlock = Integer.toBinaryString(Integer.parseInt(block,2));
+    //         while (binaryBlock.length() < 8) {
+    //             binaryBlock = "0"  +  binaryBlock;
+    //         }
+    //         binaryIP.append(binaryBlock);
+    //     }
+    //     return binaryIP.toString();
+    // }
+
     static String encodedIP(Integer j){
-        // take the 4 blocks of an ip adress separated by a .
-        // convert each block to a 8 bit binary string
-        // concatenate the 4 binary strings to get a 32 bit binary string
+        // take the 4 blocks of an IP address separated by a .
+        // convert each block to an 8-bit binary string
+        // concatenate the 4 binary strings to get a 32-bit binary string
         StringBuilder binaryIP = new StringBuilder();
 
         String[] blocks = clients.get(j).getThird().split("\\.");
 
         for (String block : blocks) {
-            String binaryBlock = Integer.toBinaryString(Integer.parseInt(block,2));
+            String binaryBlock = Integer.toBinaryString(Integer.parseInt(block, 10));
             while (binaryBlock.length() < 8) {
-                binaryBlock = "0"  +  binaryBlock;
+                binaryBlock = "0" + binaryBlock;
             }
             binaryIP.append(binaryBlock);
         }
         return binaryIP.toString();
     }
+
 
     static String encodedPort(Integer j){
         int port = clients.get(j).getFourth() ;
@@ -148,21 +167,45 @@ class PleaseWorkLikeAnON{
     }
 
     // create graph messages to be sent to VNs 
-    static List<Quadruplet<String, String, String, String>> createMessages(List<List<Integer>> adjMatrix){
-        List<Quadruplet<String, String, String, String>> messages = new ArrayList<>(adjMatrix.size());
-        Quadruplet<String, String, String, String> placeholder = null;
+    // static List<String> createMessages(List<List<Integer>> adjMatrix){
+    //     List<String> messages = new ArrayList<>(adjMatrix.size());
+    //     Quadruplet<String, String, String, String> placeholder = null;
+
+    //     for(int i = 0; i < adjMatrix.size(); i++){
+    //         messages.set(i,"");
+    //         for(int j = 0; j < adjMatrix.get(i).size(); j++){
+    //             if(adjMatrix.get(i).get(j) >=  0){
+    //                 placeholder = new Quadruplet<> (Integer.toBinaryString(j)+"", encodedIP(j), encodedPort(j), 
+    //                               encodedWeight(adjMatrix.get(i).get(j)));
+    //             }
+    //             messages.set(i,messages.get(i)+""+placeholder.toString());
+    //         }
+    //     }
+    //     return messages;
+    // }
+
+    static List<String> createMessages(List<List<Integer>> adjMatrix){
+        List<String> messages = new ArrayList<>();
 
         for(int i = 0; i < adjMatrix.size(); i++){
+            String msg = "";
             for(int j = 0; j < adjMatrix.get(i).size(); j++){
                 if(adjMatrix.get(i).get(j) >=  0){
-                    placeholder = new Quadruplet<> (Integer.toBinaryString(j)+"", encodedIP(j), encodedPort(j), 
-                                  encodedWeight(adjMatrix.get(i).get(j)));
+                    Quadruplet<String, String, String, String> placeholder =
+                        new Quadruplet<>(
+                            Integer.toBinaryString(j),
+                            encodedIP(j),
+                            encodedPort(j),
+                            encodedWeight(adjMatrix.get(i).get(j))
+                        );
+                    msg += placeholder.toString();
                 }
-                messages.add(placeholder);
             }
+            messages.add(msg);   // append the fully built message
         }
         return messages;
     }
+
 
     public static void main(String[] args) throws IOException {
         // oracle node, socket being initialised
@@ -175,9 +218,8 @@ class PleaseWorkLikeAnON{
 
         // reading the file for the first time
         List<String> configLines = readConfig(filename);
-        extractAdjacencyMatrix(configLines);
 
-        numVNs = configLines.size(); // starting with 0 connections
+        numVNs = configLines.size()+1; // starting with 0 connections
         int numConnections = 0;
 
         // make connections with all VNs (shoutout to Ram and Optiver)
@@ -188,7 +230,7 @@ class PleaseWorkLikeAnON{
 
             Socket clientSocket = server.accept();
             System.out.println("vn connected: "  +  clientSocket.getInetAddress());
-            System.out.println("vn name: "  +  clientSocket.getInetAddress());
+            System.out.println("vn name: "  +  nodeNames.charAt(numConnections));
             
             BufferedReader in = new BufferedReader(new InputStreamReader(clientSocket.getInputStream()));
             PrintWriter out = new PrintWriter(clientSocket.getOutputStream(), true);
@@ -197,24 +239,20 @@ class PleaseWorkLikeAnON{
             String IP;
             int UDP_port_num;
 
-            while ((inputLine = in.readLine()) != null) {
-                System.out.println("vn says: "  +  inputLine);
+            inputLine = in.readLine();
+            System.out.println("vn says: "  +  inputLine);
 
-                IP = Integer.toString(Integer.parseInt(inputLine.substring(0,8),2))  +  "."  +  
-                     Integer.toString(Integer.parseInt(inputLine.substring(8,16),2))  +  "."  + 
-                     Integer.toString(Integer.parseInt(inputLine.substring(16,24),2))  +  "."  + 
-                     Integer.toString(Integer.parseInt(inputLine.substring(24,32),2));
-                UDP_port_num = Integer.parseInt(inputLine.substring(32),2);
-
-                out.println("on received: "  +  inputLine);
-                if (inputLine.equals("stop")) {
-                    break;
-                }
+            IP = Integer.toString(Integer.parseInt(inputLine.substring(0,8),2))  +  "."  +  
+                 Integer.toString(Integer.parseInt(inputLine.substring(8,16),2))  +  "."  + 
+                 Integer.toString(Integer.parseInt(inputLine.substring(16,24),2))  +  "."  + 
+                 Integer.toString(Integer.parseInt(inputLine.substring(24,32),2));
+            UDP_port_num = Integer.parseInt(inputLine.substring(32),2);
+            System.out.println("Client IP = " + IP + " port num = " + UDP_port_num + " out = " + out);
+            // out.println("ANy random msg");
             
-                in.close();
-                clients.add(new Quintuplet<> (nodeNames.charAt(numConnections) + "", clientSocket, IP, UDP_port_num, out));
-                numConnections ++;
-            }
+            in.close();
+            clients.add(new Quintuplet<> (nodeNames.charAt(numConnections) + "", clientSocket, IP, UDP_port_num, out));
+            numConnections = numConnections+1;
         }
 
         System.out.println("All VNs connected.") ;
@@ -223,22 +261,21 @@ class PleaseWorkLikeAnON{
         // now going into the main loop of readin config file and send messages
 
         boolean run = true;
-        List<String> messages = createMessages(extractAdjacencyMatrix(configLines)).stream().map(Quadruplet::toString).collect(Collectors.toList());
+        List<String> messages = createMessages(extractAdjacencyMatrix(configLines));//.stream().map(Quadruplet::toString).collect(Collectors.toList());
         PrintWriter out;
-
         
-        for (String msg: messages){
-            System.out.println("Message to be sent: " + msg);
-        }
-
-        System.exit(0);
+        // for (String msg: messages){
+        //     System.out.println("Message to be sent: " + msg);
+        // }
+        // System.exit(0);
 
         // sending neighbors for the first time
         for (int i=0; i < numConnections; i++){
+            System.out.println(i + clients.get(i).toString());
             out = clients.get(i).fifth;
-            for (String msg: messages){
-                out.println(msg);
-            }
+            out.println(messages.get(i) + "\n");
+            System.out.println("Sending msg: " + messages.get(i));
+            System.out.println(i + "msg sent");
         }
         
         Clock clock = Clock.systemUTC();
@@ -274,9 +311,10 @@ class PleaseWorkLikeAnON{
                     // config changed — recompute and resend
                     System.out.println("Config file changed, recomputing...");
                     List<List<Integer>> adj = extractAdjacencyMatrix(configLines);
-                    messages = createMessages(adj).stream()
-                                                    .map(Quadruplet::toString)
-                                                    .collect(Collectors.toList());
+                    // messages = createMessages(adj).stream()
+                                                    // .map(Quadruplet::toString)
+                                                    // .collect(Collectors.toList());
+                    messages = createMessages(adj);
 
                     for (int i = 0; i < numConnections; i++) {
                         out = clients.get(i).getFifth();

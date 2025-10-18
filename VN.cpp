@@ -140,7 +140,7 @@ public:
         }
 
         // Send initial connect message
-        string connect_message = ip_to_bit(myIP) + port_to_bit(myPort);
+        string connect_message = ip_to_bit(myIP) + port_to_bit(myPort) + "\n";
         send(vnSocket, connect_message.c_str(), connect_message.size(), 0);
 
         cout << "Connected to Oracle Node at " << ONIPAddr << ":" << ONPort << endl;
@@ -155,6 +155,7 @@ public:
 
         char buffer[4096];
         int bytesReceived = recv(vnSocket, buffer, sizeof(buffer) - 1, 0);
+        // cout << "Bytes received = " << bytesReceived << endl;
 
         if (bytesReceived > 0) {
             buffer[bytesReceived] = '\0';
@@ -164,7 +165,7 @@ public:
             send_my_lsp();
         } 
         else if (bytesReceived == 0) {
-            cout << "No new info from Oracle node" << endl;
+            // cout << "No new info from Oracle node" << endl;
         } 
         else {
             if (errno != EWOULDBLOCK && errno != EAGAIN) {
@@ -390,7 +391,6 @@ int main() {
 
     VN node(oracleip, oracleport, vnip, vnport);
     node.connect_to_oracle();
-    node.listen_for_on_messages();
     long long counter = 0;
     long long bignum = 5e7;
 

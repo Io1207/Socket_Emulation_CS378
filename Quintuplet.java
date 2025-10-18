@@ -36,7 +36,7 @@ class Triplet<A, B, C> {
 
     @Override
     public String toString() {
-        return "(" + first + ", " + second + ", " + third + ")";
+        return first + "" + second + "" +  "" + third;
     }
 
     @Override
@@ -75,7 +75,7 @@ class Quadruplet<A, B, C, D> {
 
     @Override
     public String toString() {
-        return "(" + first + ", " + second + ", " + third + ", " + fourth + ")";
+        return first + "" + second + "" +  "" + third + "" + fourth;
     }
 
     @Override
@@ -113,7 +113,7 @@ class Quintuplet<A, B, C, D, E> {
     // String representation
     @Override
     public String toString() {
-        return "(" + first + ", " + second + ", " + third + ", " + fourth + ", " + fifth + ")";
+        return first + "" + second + "" +  "" + third + "" + fourth + "" + fifth;
     }
 
     // Example getters (optional)
