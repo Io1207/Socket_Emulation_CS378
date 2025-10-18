@@ -186,6 +186,7 @@ public:
         } 
         else if (bytesReceived == 0) {
             std::cout << "Oracle node closed the connection" << std::endl;
+            exit(1);
         } 
         else {
             if (errno != EWOULDBLOCK && errno != EAGAIN) {
@@ -194,36 +195,6 @@ public:
             // EWOULDBLOCK/EAGAIN → no data available, do nothing
         }
     }
-
-
-    // void listen_for_on_messages() {
-    //     if (vnSocket < 0) {
-    //         // cerr << "Not connected to Oracle Node.\n";
-    //         return;
-    //     }
-
-    //     char buffer[4096];
-    //     int bytesReceived = recv(vnSocket, buffer, sizeof(buffer) - 1, 0);
-    //     // cout << "Bytes received = " << bytesReceived << endl;
-
-    //     if (bytesReceived > 0) {
-    //         buffer[bytesReceived] = '\0';
-    //         string response(buffer);
-    //         cout << "\nReceived from Oracle (" << bytesReceived << " bytes): " << response << endl;
-    //         response = response.substr(0, response.size()-1);
-    //         parse_neighbours(response);
-    //         send_my_lsp();
-    //     } 
-    //     else if (bytesReceived == 0) {
-    //         cout << "No new info from Oracle node" << endl;
-    //     } 
-    //     else {
-    //         if (errno != EWOULDBLOCK && errno != EAGAIN) {
-    //             perror("recv() error");
-    //         }
-    //         // If EWOULDBLOCK / EAGAIN → no data, do nothing (non-blocking)
-    //     }
-    // }
 
     void send_my_lsp() {
         string my_message = my_lsp(); // get your LSP as a bitstring
@@ -341,7 +312,7 @@ private:
 
             if(ip == myIP && port == myPort){
                 myname = name;
-                cout << "Found my name = " << myname << endl;
+                cout << "I am VN " << myname << endl;
                 break;
             }
         }
@@ -431,21 +402,21 @@ private:
 
 
 
-int main() {
-    string oracleip;
-    string vnip;
-    int oracleport;
-    int vnport;
+int main(int argc, char* argv[]) {
+    if (argc != 5) {
+        std::cerr << "Usage: " << argv[0] 
+                  << " <OracleIP> <OraclePort> <VNIP> <VNPort>\n";
+        return 1;
+    }
 
-    cout<<"Oracle Node IP Address: ";
-    cin>>oracleip;
-    cout<<"Oracle Node Port: ";
-    cin>>oracleport;
+    std::string oracleip = argv[1];
+    int oracleport = std::stoi(argv[2]);
+    std::string vnip = argv[3];
+    int vnport = std::stoi(argv[4]);
 
-    cout<<"Virtual Node IP Address: ";
-    cin>>vnip;
-    cout<<"Virtual Node Port: ";
-    cin>>vnport;
+    std::cout << "Oracle IP: " << oracleip << ", Port: " << oracleport << "\n";
+    std::cout << "VN IP: " << vnip << ", Port: " << vnport << "\n";
+
 
     VN node(oracleip, oracleport, vnip, vnport);
     node.connect_to_oracle();
@@ -455,25 +426,18 @@ int main() {
     long long psnum = 1e5;
 
     while(true){
-        // cout<<1;
         node.listen_for_on_messages();
-        // cout<<2;
         node.listen_for_vn_messages();
-        // cout<<3;
 
         if(!counter%lspnum && node.myname != '?'){
             node.send_my_lsp();
         }
 
-        // cout<<4;
-
         if(!counter%psnum && node.myname != '?'){
             node.print_state();
         }
-        // cout<<5<<endl;
 
         counter = (counter + 1)%bignum;
-        // cout << "counter = " << counter << endl;
     }
 
     return 0;

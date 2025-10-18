@@ -101,28 +101,7 @@ class PleaseWorkLikeAnON{
         return adjMatrix;
     }
 
-    // static String encodedIP(Integer j){
-    //     // take the 4 blocks of an ip adress separated by a .
-    //     // convert each block to a 8 bit binary string
-    //     // concatenate the 4 binary strings to get a 32 bit binary string
-    //     StringBuilder binaryIP = new StringBuilder();
-
-    //     String[] blocks = clients.get(j).getThird().split("\\.");
-
-    //     for (String block : blocks) {
-    //         String binaryBlock = Integer.toBinaryString(Integer.parseInt(block,2));
-    //         while (binaryBlock.length() < 8) {
-    //             binaryBlock = "0"  +  binaryBlock;
-    //         }
-    //         binaryIP.append(binaryBlock);
-    //     }
-    //     return binaryIP.toString();
-    // }
-
     static String encodedIP(Integer j){
-        // take the 4 blocks of an IP address separated by a .
-        // convert each block to an 8-bit binary string
-        // concatenate the 4 binary strings to get a 32-bit binary string
         StringBuilder binaryIP = new StringBuilder();
 
         String[] blocks = clients.get(j).getThird().split("\\.");
@@ -174,24 +153,6 @@ class PleaseWorkLikeAnON{
         return configLines;
     }
 
-    // create graph messages to be sent to VNs 
-    // static List<String> createMessages(List<List<Integer>> adjMatrix){
-    //     List<String> messages = new ArrayList<>(adjMatrix.size());
-    //     Quadruplet<String, String, String, String> placeholder = null;
-
-    //     for(int i = 0; i < adjMatrix.size(); i++){
-    //         messages.set(i,"");
-    //         for(int j = 0; j < adjMatrix.get(i).size(); j++){
-    //             if(adjMatrix.get(i).get(j) >=  0){
-    //                 placeholder = new Quadruplet<> (Integer.toBinaryString(j)+"", encodedIP(j), encodedPort(j), 
-    //                               encodedWeight(adjMatrix.get(i).get(j)));
-    //             }
-    //             messages.set(i,messages.get(i)+""+placeholder.toString());
-    //         }
-    //     }
-    //     return messages;
-    // }
-
     static List<String> createMessages(List<List<Integer>> adjMatrix){
         List<String> messages = new ArrayList<>();
 
@@ -219,19 +180,38 @@ class PleaseWorkLikeAnON{
         // oracle node, socket being initialised
         OracleNode x = new OracleNode("ON_1");
         
-        Scanner sc = new Scanner(System.in);
-        System.out.println("Enter config file name:");
-        String filename = sc.nextLine();
-        sc.close();
+        // Scanner sc = new Scanner(System.in);
+        // System.out.println("Enter config file name:");
+        // String filename = sc.nextLine();
+        // sc.close();
 
-        // reading the file for the first time
+        String filename;
+        if (args.length > 0) {
+            filename = args[0];
+        } else {
+            Scanner sc = new Scanner(System.in);
+            System.out.println("Enter config file name:");
+            filename = sc.nextLine();
+            sc.close();
+        }
+
+        if (args.length > 1) {
+            try {
+                time_poll = Integer.parseInt(args[1]);
+                System.out.println("Timeout is now " + time_poll + " ms");
+            } catch (NumberFormatException e) {
+                System.err.println("Invalid timeout argument, using default");
+            }
+        } else {
+            System.out.println("Using default timeout: " + time_poll + " ms");
+        }
+
         List<String> configLines = readConfig(filename);
 
-        numVNs = configLines.size()+1; // starting with 0 connections
+        numVNs = configLines.size()+1;
         int numConnections = 0;
 
         // make connections with all VNs (shoutout to Ram and Optiver)
-        
         ServerSocket server = x.initSocket();
         while (numConnections < numVNs){
             System.out.println("Waiting for vn connection...");
@@ -256,16 +236,13 @@ class PleaseWorkLikeAnON{
                  Integer.toString(Integer.parseInt(inputLine.substring(24,32),2));
             UDP_port_num = Integer.parseInt(inputLine.substring(32),2);
             System.out.println("Client IP = " + IP + " port num = " + UDP_port_num + " out = " + out);
-            // out.println("ANy random msg");
             
-            // in.close();
             clients.add(new Quintuplet<> (nodeNames.charAt(numConnections) + "", clientSocket, IP, UDP_port_num, out));
             numConnections = numConnections+1;
         }
 
         System.out.println("All VNs connected.") ;
 
-        // ------------------------------------------------------------
         // now going into the main loop of readin config file and send messages
 
         boolean run = true;
@@ -298,12 +275,11 @@ class PleaseWorkLikeAnON{
                         // Pause execution
                         Thread.sleep(time_poll);
                     } catch (InterruptedException e) {
-                        // Handle the case where the thread is interrupted while sleeping
                         System.err.println("Thread was interrupted: " + e.getMessage());
-                        Thread.currentThread().interrupt(); // Re-interrupt the thread
+                        Thread.currentThread().interrupt(); 
                     }
                     System.out.println("Resuming execution after sleep.");
-                    start = clock.instant(); // reset the timer
+                    start = clock.instant(); 
                     continue;
                     
                 }
@@ -321,27 +297,10 @@ class PleaseWorkLikeAnON{
                     lastUpdatedConfig = new ArrayList<>(configLines);
                 }
 
-                // reset timer
                 start = clock.instant();
             }
 
-            // optional: sleep a tiny bit to reduce CPU usage
             try { Thread.sleep(200); } catch (InterruptedException e) { break; }
         }
     }
 }
-//                 lastUpdatedConfig = configLines;
-//                 messages = createMessages(extractAdjacencyMatrix(configLines)).stream().map(Quadruplet::toString).collect(Collectors.toList());
-
-//                 // sending neighbors again
-//                 for (int i=0; i < numConnections; i++){
-//                     out = clients.get(i).fifth;
-//                     for (String msg: messages){
-//                         out.println(msg);
-//                     }
-//                 }
-//                 start = clock.instant(); // reset the timer
-//             }
-//         }
-//     }
-// }
