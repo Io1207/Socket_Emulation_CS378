@@ -1,7 +1,6 @@
 import java.net.*;
-// import java.nio.Buffer;
-import java.util.ArrayList;
 import java.io.*;
+// import java.nio.Buffer;
 import java.util.*;
 import java.time.Clock;
 import java.time.Instant;
@@ -30,9 +29,10 @@ public class OracleNode extends Nodes{
     }
 
     ServerSocket initSocket() throws IOException{
-        ServerSocket serverSocket = new ServerSocket(5000); // Listen on port 500
+        // ServerSocket server = new ServerSocket(8080); 
+        ServerSocket server = new ServerSocket(8080, 50, InetAddress.getByName("127.0.0.1"));
         System.out.println("started, waiting for VN");
-        return serverSocket;
+        return server;
     }
 }
 
@@ -58,41 +58,45 @@ class PleaseWorkLikeAnON{
     static List<Quintuplet<String, Socket, String, Integer, PrintWriter>> clients = new ArrayList<>();
     static String nodeNames = "ABCDEFGHIJKLMNOPQRSTUVWXYZ";
     static int numVNs;
-    static int time_poll = 60000; 
+    static int time_poll = 60000;
 
-    static List<List<Integer>> extractAdjacencyMatrix(List<String> configFileContents){
-        
+    static List<List<Integer>> extractAdjacencyMatrix(List<String> configFileContents) {
         int n = configFileContents.size() + 1;
 
-        //create an n x n adjacency matrix
+        // Create an n × n adjacency matrix initialized to -1
         List<List<Integer>> adjMatrix = new ArrayList<>();
         for (int i = 0; i < n; i++) {
-            adjMatrix.add(new ArrayList<>(Collections.nCopies(n, 0)));
+            List<Integer> row = new ArrayList<>(Collections.nCopies(n, -1));
+            row.set(i, 0); // diagonal entries are 0
+            adjMatrix.add(row);
         }
 
-        // i am given upper triangular matrix in the config file
-        // I need to convert it to a full adjacency matrix
-        for(int i = 0; i < n; i++) {
-            String line = configFileContents.get(i);
-            line = line.strip();
-            String[] parts = line.split(" ");
+        // Convert upper-triangular config file into full symmetric matrix
+        for (int i = 0; i < configFileContents.size(); i++) {
+            String line = configFileContents.get(i).trim();
+            if (line.isEmpty()) continue;
 
-            for(int j = n-1; j >= i; j--){
-                if (i == j){
-                    adjMatrix.get(i).set(i,0);
-                    continue;
-                }
-                
-                int weight = Integer.parseInt(parts[j-i-1]);
-                if (i > j){
-                    adjMatrix.get(i).set(j, weight);
-                    adjMatrix.get(j).set(i, weight);
-                }
+            // split by whitespace
+            String[] parts = line.split("\\s+");
 
-                // adjMatrix.get(i).set(i + j,weight); // set the weight in the upper triangular part
-                // adjMatrix.get(i + j).set(i,weight); // set the weight in the lower triangular part
+            for (int j = 0; j < parts.length; j++) {
+                int cost = Integer.parseInt(parts[j]);
+                int col = i + j + 1; // because each line skips the diagonal and left side
+                if (col < n && cost > 0) {
+                    adjMatrix.get(i).set(col, cost);
+                    adjMatrix.get(col).set(i, cost);
+                }
             }
         }
+
+        System.out.println("\nAdjacency Matrix (" + n + " x " + n + "):");
+        for (int i = 0; i < n; i++) {
+            for (int j = 0; j < n; j++) {
+                System.out.printf("%4d", adjMatrix.get(i).get(j));
+            }
+            System.out.println();
+        }
+        System.out.println();
 
         return adjMatrix;
     }
@@ -163,7 +167,6 @@ class PleaseWorkLikeAnON{
     public static void main(String[] args) throws IOException {
         // oracle node, socket being initialised
         OracleNode x = new OracleNode("ON_1");
-        ServerSocket serverSocket = x.initSocket();
         
         Scanner sc = new Scanner(System.in);
         System.out.println("Enter config file name:");
@@ -172,14 +175,18 @@ class PleaseWorkLikeAnON{
 
         // reading the file for the first time
         List<String> configLines = readConfig(filename);
+        extractAdjacencyMatrix(configLines);
 
         numVNs = configLines.size(); // starting with 0 connections
         int numConnections = 0;
 
         // make connections with all VNs (shoutout to Ram and Optiver)
+        
+        ServerSocket server = x.initSocket();
         while (numConnections < numVNs){
             System.out.println("Waiting for vn connection...");
-            Socket clientSocket = serverSocket.accept();
+
+            Socket clientSocket = server.accept();
             System.out.println("vn connected: "  +  clientSocket.getInetAddress());
             System.out.println("vn name: "  +  clientSocket.getInetAddress());
             

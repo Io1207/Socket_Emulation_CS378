@@ -5,6 +5,8 @@
 #include <sstream>
 #include <arpa/inet.h>
 #include <unistd.h>
+#include <bitset>
+
 using namespace std;
 
 string ip_to_bit(string ip) {
@@ -129,7 +131,7 @@ public:
             vnSocket = -1;
             return false;
         }
-
+        cout<<"Attempting to connect to Oracle Node at " << ONIPAddr << ":" << ONPort << "...\n";
         if (connect(vnSocket, (struct sockaddr*)&serverAddress, sizeof(serverAddress)) < 0) {
             perror("Connection Failed");
             close(vnSocket);
@@ -147,7 +149,7 @@ public:
 
     void listen_for_on_messages() {
         if (vnSocket < 0) {
-            cerr << "Not connected to Oracle Node.\n";
+            // cerr << "Not connected to Oracle Node.\n";
             return;
         }
 
