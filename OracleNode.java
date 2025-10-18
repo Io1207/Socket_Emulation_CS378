@@ -155,6 +155,14 @@ class PleaseWorkLikeAnON{
         return binaryWeight;
     }
 
+    static String encodedName(Integer name){
+        String binaryWeight = Integer.toBinaryString(name);
+        while (binaryWeight.length() < 5){
+            binaryWeight = "0" + binaryWeight;
+        }
+        return binaryWeight;
+    }
+
     static List<String> readConfig(String filename) throws IOException{
         Readfile rf = new Readfile();
 
@@ -193,7 +201,7 @@ class PleaseWorkLikeAnON{
                 if(adjMatrix.get(i).get(j) >=  0){
                     Quadruplet<String, String, String, String> placeholder =
                         new Quadruplet<>(
-                            Integer.toBinaryString(j),
+                            encodedName(j),
                             encodedIP(j),
                             encodedPort(j),
                             encodedWeight(adjMatrix.get(i).get(j))
@@ -250,7 +258,7 @@ class PleaseWorkLikeAnON{
             System.out.println("Client IP = " + IP + " port num = " + UDP_port_num + " out = " + out);
             // out.println("ANy random msg");
             
-            in.close();
+            // in.close();
             clients.add(new Quintuplet<> (nodeNames.charAt(numConnections) + "", clientSocket, IP, UDP_port_num, out));
             numConnections = numConnections+1;
         }
@@ -263,19 +271,11 @@ class PleaseWorkLikeAnON{
         boolean run = true;
         List<String> messages = createMessages(extractAdjacencyMatrix(configLines));//.stream().map(Quadruplet::toString).collect(Collectors.toList());
         PrintWriter out;
-        
-        // for (String msg: messages){
-        //     System.out.println("Message to be sent: " + msg);
-        // }
-        // System.exit(0);
 
         // sending neighbors for the first time
         for (int i=0; i < numConnections; i++){
-            System.out.println(i + clients.get(i).toString());
             out = clients.get(i).fifth;
-            out.println(messages.get(i) + "\n");
-            System.out.println("Sending msg: " + messages.get(i));
-            System.out.println(i + "msg sent");
+            out.println(messages.get(i));
         }
         
         Clock clock = Clock.systemUTC();
@@ -310,17 +310,12 @@ class PleaseWorkLikeAnON{
                 else {
                     // config changed — recompute and resend
                     System.out.println("Config file changed, recomputing...");
-                    List<List<Integer>> adj = extractAdjacencyMatrix(configLines);
-                    // messages = createMessages(adj).stream()
-                                                    // .map(Quadruplet::toString)
-                                                    // .collect(Collectors.toList());
-                    messages = createMessages(adj);
+                    messages = createMessages(extractAdjacencyMatrix(configLines));//.stream().map(Quadruplet::toString).collect(Collectors.toList());
+                    
 
-                    for (int i = 0; i < numConnections; i++) {
-                        out = clients.get(i).getFifth();
-                        for (String msg : messages) {
-                            out.println(msg);
-                        }
+                    for (int i=0; i < numConnections; i++){
+                        out = clients.get(i).fifth;
+                        out.println(messages.get(i));
                     }
 
                     lastUpdatedConfig = new ArrayList<>(configLines);

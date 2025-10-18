@@ -89,7 +89,7 @@ public:
             seqnum = 0;
             myname = '?';
             adjlist.resize(26);
-            latest_seq.resize(26);
+            latest_seq.resize(26, -1);
             vnSocket = -1;
             udpSocket = socket(AF_INET, SOCK_DGRAM, 0);
             if (udpSocket < 0) {
@@ -161,11 +161,12 @@ public:
             buffer[bytesReceived] = '\0';
             string response(buffer);
             cout << "\nReceived from Oracle (" << bytesReceived << " bytes): " << response << endl;
+            response = response.substr(0, response.size()-1);
             parse_neighbours(response);
             send_my_lsp();
         } 
         else if (bytesReceived == 0) {
-            // cout << "No new info from Oracle node" << endl;
+            cout << "No new info from Oracle node" << endl;
         } 
         else {
             if (errno != EWOULDBLOCK && errno != EAGAIN) {
@@ -212,8 +213,10 @@ public:
         socklen_t senderLen = sizeof(senderAddr);
 
         // Non-blocking receive (or blocking, depending on your preference)
+        // cout << "gonna try to recv from udp " << endl;
         int bytesReceived = recvfrom(udpSocket, buffer, sizeof(buffer) - 1, MSG_DONTWAIT,
                                     (struct sockaddr*)&senderAddr, &senderLen);
+        // cout << "udp recv call returned " << endl;
 
         if (bytesReceived > 0) {
             buffer[bytesReceived] = '\0';
@@ -247,6 +250,7 @@ public:
     }
 
     void print_state(){
+        cout << "print state is being called " << endl;
         for(int i=0; i<26; i++){
             if(!adjlist[i].empty()){
                 cout << i+'a' << " -> ";
@@ -258,8 +262,9 @@ public:
         }
     }
 
+
 private:
-    void parse_neighbours(const string& bitmsg) {
+    void parse_neighbours(string& bitmsg) {
         const int ENTRY_BITS = 5 + 32 + 16 + 16; // 69 bits per neighbour
 
         if (bitmsg.size() % ENTRY_BITS != 0) {
@@ -345,7 +350,7 @@ private:
             // Process link_state_bits as needed
             adjlist[originID].clear();
             int base = 0;
-            while(base < link_state_bits.size()){
+            while(base < link_state_bits.size()-1){
                 int nbrname = bits_to_int(link_state_bits.substr(base, 5));
                 int cost = bits_to_int(link_state_bits.substr(base+5, 16));
                 adjlist[originID].push_back(make_pair(nbrname, cost));
@@ -395,16 +400,22 @@ int main() {
     long long bignum = 5e7;
 
     while(true){
+        cout<<1;
         node.listen_for_on_messages();
+        cout<<2;
         node.listen_for_vn_messages();
+        cout<<3;
 
         if(counter == 1e7 && node.myname != '?'){
             node.send_my_lsp();
         }
 
+        cout<<4;
+
         if(counter == 1e6 && node.myname != '?'){
             node.print_state();
         }
+        cout<<5<<endl;
 
         counter = (counter + 1)%bignum;
     }
